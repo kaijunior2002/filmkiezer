@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FilmKiezer — Welke film kijk je vanavond?</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:        #0d0d12;
+      --surface:   #18181f;
+      --surface2:  #222230;
+      --accent:    #e50914;
+      --accent2:   #ff5733;
+      --text:      #efeffa;
+      --muted:     #7f7f9a;
+      --border:    #2a2a3a;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo { font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: -0.5px; }
+    .logo span { color: var(--text); }
+    .logo-sub { font-size: 12px; color: var(--muted); margin-left: 4px; letter-spacing: 0.3px; }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px 60px;
+      max-width: 680px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ── Welcome ── */
+    .welcome { text-align: center; }
+    .welcome-icon { font-size: 64px; margin-bottom: 24px; }
+    .welcome h1 { font-size: 34px; font-weight: 800; line-height: 1.2; margin-bottom: 14px; }
+    .welcome p  { color: var(--muted); font-size: 16px; line-height: 1.65; margin-bottom: 36px; max-width: 440px; margin-left: auto; margin-right: auto; }
+    .pill-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 32px; }
+    .pill { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; font-size: 13px; color: var(--muted); padding: 5px 13px; }
+
+    /* ── Buttons ── */
+    .btn-start {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 15px 44px;
+      font-size: 17px;
+      font-weight: 700;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s;
+    }
+    .btn-start:hover  { background: #f10c18; transform: scale(1.03); }
+    .btn-start:active { transform: scale(0.97); }
+
+    .btn-next {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      opacity: .35;
+      pointer-events: none;
+    }
+    .btn-next.on  { opacity: 1; pointer-events: all; }
+    .btn-next.on:hover { background: #f10c18; transform: scale(1.02); }
+
+    .btn-back {
+      background: transparent;
+      color: var(--muted);
+      border: 2px solid var(--border);
+      padding: 11px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-back:hover { border-color: var(--muted); color: var(--text); }
+
+    .btn-restart {
+      background: transparent;
+      color: var(--muted);
+      border: 2px solid var(--border);
+      padding: 11px 26px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-top: 32px;
+    }
+    .btn-restart:hover { border-color: var(--text); color: var(--text); }
+
+    /* ── Progress ── */
+    .progress-wrap { width: 100%; margin-bottom: 38px; }
+    .progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .progress-track { width: 100%; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-fill  { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width .4s ease; }
+
+    /* ── Question ── */
+    .q-card { width: 100%; animation: fadeup .3s ease; }
+    @keyframes fadeup {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+    .q-label { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px; }
+    .q-text  { font-size: 23px; font-weight: 700; line-height: 1.3; margin-bottom: 26px; }
+
+    .options { display: flex; flex-direction: column; gap: 10px; }
+    .opt {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: all .15s;
+    }
+    .opt:hover            { border-color: #5a5a7a; background: var(--surface2); }
+    .opt.sel              { border-color: var(--accent); background: rgba(229,9,20,.1); }
+    .opt-icon             { font-size: 22px; flex-shrink: 0; width: 30px; text-align: center; }
+    .opt-body             { }
+    .opt-main             { font-size: 15px; font-weight: 600; }
+    .opt-sub              { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+    .q-nav { display: flex; gap: 10px; margin-top: 26px; justify-content: flex-end; }
+
+    /* ── Results ── */
+    .res-header { text-align: center; margin-bottom: 36px; }
+    .res-header h2 { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+    .res-header p  { color: var(--muted); font-size: 14px; }
+
+    .film-list { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+
+    .film-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 20px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      animation: fadeup .4s ease;
+      transition: border-color .2s;
+    }
+    .film-card.gold { border-color: var(--accent); background: linear-gradient(135deg, rgba(229,9,20,.06), var(--surface)); }
+
+    .rank { font-size: 22px; font-weight: 800; color: var(--muted); min-width: 32px; text-align: center; padding-top: 2px; line-height: 1; }
+    .film-card.gold .rank { color: var(--accent); }
+
+    .film-info { flex: 1; min-width: 0; }
+    .film-title { font-size: 17px; font-weight: 700; margin-bottom: 3px; }
+    .film-meta  { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+    .tag  { background: var(--surface2); color: var(--muted); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: .5px; }
+
+    .film-desc { font-size: 13px; color: var(--muted); line-height: 1.55; margin-bottom: 12px; }
+
+    .match-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .match-lbl  { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .match-track { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .match-bar   { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; width: 0%; transition: width 1s ease .2s; }
+    .match-pct  { font-size: 13px; font-weight: 700; min-width: 34px; text-align: right; }
+
+    .nf-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 7px;
+      transition: background .15s;
+    }
+    .nf-btn:hover { background: #f10c18; }
+
+    .res-footer { display: flex; justify-content: center; padding-bottom: 40px; }
+
+    /* Disclaimer */
+    .disclaimer { font-size: 11px; color: #555570; text-align: center; margin-top: 20px; line-height: 1.5; }
+
+    @media (max-width: 480px) {
+      .q-text  { font-size: 19px; }
+      .welcome h1 { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">Film<span>Kiezer</span></div>
+  <span class="logo-sub">Netflix NL</span>
+</header>
+
+<div class="main" id="app"></div>
+
+<script>
+// ─────────────────────────────────────────────
+// FILMS
+// ─────────────────────────────────────────────
+const FILMS = [
+  {
+    id: 'glass_onion',
+    title: 'Glass Onion: A Knives Out Mystery',
+    year: 2022, runtime: '2u 19m',
+    genres: ['Mystery', 'Comedy', 'Thriller'],
+    desc: 'Detective Benoit Blanc is uitgenodigd op het privé-eiland van een tech-miljardair voor een moordspel. Dan gaat het echt mis. Vol briljante twists, humor en scherpe dialogen.',
+    url: 'https://www.netflix.com/title/81458416'
+  },
+  {
+    id: 'dont_look_up',
+    title: "Don't Look Up",
+    year: 2021, runtime: '2u 18m',
+    genres: ['Comedy', 'Satire', 'Sci-Fi'],
+    desc: 'Twee astronomen ontdekken een komeet op weg naar aarde. Niemand luistert. Een bittere, hilarische satire over media en politiek met een indrukwekkende cast.',
+    url: 'https://www.netflix.com/title/81252357'
+  },
+  {
+    id: 'power_of_dog',
+    title: 'The Power of the Dog',
+    year: 2021, runtime: '2u 06m',
+    genres: ['Drama', 'Psychologisch', 'Western'],
+    desc: 'Een wrede rancher krijgt een nieuw familielid in zijn omgeving. Langzaam opgebouwde psychologische spanning die je bijblijft. Benedict Cumberbatch op zijn allerbest.',
+    url: 'https://www.netflix.com/title/81127997'
+  },
+  {
+    id: 'all_quiet',
+    title: 'All Quiet on the Western Front',
+    year: 2022, runtime: '2u 28m',
+    genres: ['Oorlog', 'Drama'],
+    desc: 'Een jonge Duitse soldaat ervaart de gruwelen van de Eerste Wereldoorlog. Ongenadig realistisch en visueel indrukwekkend. Won de Oscar voor Beste Niet-Engelstalige Film.',
+    url: 'https://www.netflix.com/title/81300843'
+  },
+  {
+    id: 'carry_on',
+    title: 'Carry-On',
+    year: 2024, runtime: '1u 58m',
+    genres: ['Thriller', 'Actie'],
+    desc: 'Een jonge TSA-medewerker wordt gedwongen gevaarlijke bagage door de beveiliging te laten gaan — op kerstavond. Strak, snel en ongelooflijk spannend van begin tot eind.',
+    url: 'https://www.netflix.com/title/81760187'
+  },
+  {
+    id: 'rebel_ridge',
+    title: 'Rebel Ridge',
+    year: 2024, runtime: '2u 07m',
+    genres: ['Thriller', 'Actie', 'Drama'],
+    desc: 'Een man rijdt een klein stadje in en botst met lokale politie die zijn geld in beslag neemt. Slim geschreven en meer dan alleen actie — denk aan een moderne western.',
+    url: 'https://www.netflix.com/title/81790310'
+  },
+  {
+    id: 'leave_world',
+    title: 'Leave the World Behind',
+    year: 2023, runtime: '2u 18m',
+    genres: ['Thriller', 'Mysterie', 'Drama'],
+    desc: 'Een gezin op vakantie wordt overvallen door een mysterieuze blackout en onbekende vreemdelingen die aanspreken op hun deur. Ongemakkelijk, sfeerrijk en onheilspellend.',
+    url: 'https://www.netflix.com/title/81314175'
+  },
+  {
+    id: 'bird_box',
+    title: 'Bird Box',
+    year: 2018, runtime: '2u 04m',
+    genres: ['Horror', 'Thriller', 'Survival'],
+    desc: 'Mysterieuze wezens terroriseren de wereld — wie ze ziet, wordt gek. Een moeder probeert met haar kinderen een veilige plek te bereiken, met ogen dicht.',
+    url: 'https://www.netflix.com/title/80196789'
+  },
+  {
+    id: 'extraction',
+    title: 'Extraction',
+    year: 2020, runtime: '1u 56m',
+    genres: ['Actie', 'Thriller'],
+    desc: 'Huurmoordenaar Tyler Rake moet de ontvoerde zoon van een druglord bevrijden uit Bangladesh. Chris Hemsworth in non-stop rauwe, brute actie — één van de beste op Netflix.',
+    url: 'https://www.netflix.com/title/80230399'
+  },
+  {
+    id: 'murder_mystery',
+    title: 'Murder Mystery',
+    year: 2019, runtime: '1u 37m',
+    genres: ['Comedy', 'Mystery'],
+    desc: 'Een Amerikaans echtpaar beland op een superjacht vol rijke mensen — en dan wordt er iemand vermoord. Licht, grappig en perfect voor een luie avond op de bank.',
+    url: 'https://www.netflix.com/title/80241913'
+  },
+  {
+    id: 'adam_project',
+    title: 'The Adam Project',
+    year: 2022, runtime: '1u 46m',
+    genres: ['Sci-Fi', 'Avontuur', 'Actie'],
+    desc: 'Een tijdreiziger keert terug naar het verleden en ontmoet zijn 12-jarige zelf. Vermakelijk, warm en vol actie. Geweldig voor een avondje met z\'n allen.',
+    url: 'https://www.netflix.com/title/81444969'
+  },
+  {
+    id: 'tick_boom',
+    title: 'tick, tick… BOOM!',
+    year: 2021, runtime: '1u 55m',
+    genres: ['Musical', 'Drama', 'Biografie'],
+    desc: 'Het verhaal van Jonathan Larson (de maker van Rent) op de rand van zijn 30e verjaardag. Energiek, ontroerend en vol geweldige nummers. Andrew Garfield verrast.',
+    url: 'https://www.netflix.com/title/81149184'
+  },
+  {
+    id: 'hustle',
+    title: 'Hustle',
+    year: 2022, runtime: '1u 57m',
+    genres: ['Sport', 'Drama'],
+    desc: 'Een NBA-scout ontdekt een ruwe diamant in Spanje en geeft alles om hem een kans te geven. Adam Sandler laat zien dat hij écht kan acteren. Oprecht feel-good.',
+    url: 'https://www.netflix.com/title/81241278'
+  },
+  {
+    id: 'swimmers',
+    title: 'The Swimmers',
+    year: 2022, runtime: '2u 14m',
+    genres: ['Drama', 'Biografie', 'Sport'],
+    desc: 'Het waargebeurde verhaal van twee Syrische zussen die als vluchtelingen naar Europa reizen en uiteindelijk op de Olympische Spelen terechtkomen. Hartverscheurend en prachtig.',
+    url: 'https://www.netflix.com/title/81011713'
+  },
+  {
+    id: 'old_guard',
+    title: 'The Old Guard',
+    year: 2020, runtime: '2u 05m',
+    genres: ['Actie', 'Fantasy', 'Drama'],
+    desc: 'Een groep onsterfelijke huurlingen wordt verraden terwijl ze een nieuwe ontdekken. Charlize Theron is subliem. Een slimme actiefilm met meer hart dan je verwacht.',
+    url: 'https://www.netflix.com/title/81038963'
+  }
+];
+
+// ─────────────────────────────────────────────
+// QUESTIONS
+// ─────────────────────────────────────────────
+const QUESTIONS = [
+  {
+    id: 'mood',
+    text: 'Wat is je stemming vanavond?',
+    opts: [
+      { icon: '😄', main: 'Lekker lachen en relaxen',    sub: 'Licht, vrolijk, geen zwaar gedoe',
+        s: { glass_onion:3, murder_mystery:3, dont_look_up:2, adam_project:2, hustle:2 } },
+      { icon: '⚡', main: 'Spanning en adrenaline',       sub: 'Op het puntje van mijn stoel',
+        s: { carry_on:3, extraction:3, bird_box:2, rebel_ridge:2, old_guard:2 } },
+      { icon: '💔', main: 'Geraakt worden',               sub: 'Emotie, diepgang, iets voelen',
+        s: { tick_boom:3, swimmers:3, power_of_dog:2, all_quiet:2, hustle:2 } },
+      { icon: '🌑', main: 'Donker en intensief',          sub: 'Zwaar, complex, ongemakkelijk',
+        s: { leave_world:3, power_of_dog:3, all_quiet:2, dont_look_up:2, bird_box:2 } }
+    ]
+  },
+  {
+    id: 'company',
+    text: 'Met wie kijk je?',
+    opts: [
+      { icon: '🙋', main: 'Alleen',                       sub: 'Gewoon ik en het scherm',
+        s: { power_of_dog:2, leave_world:2, tick_boom:2, all_quiet:2, bird_box:2, dont_look_up:2 } },
+      { icon: '💑', main: 'Met partner',                  sub: 'Avondje samen',
+        s: { glass_onion:2, murder_mystery:2, leave_world:2, rebel_ridge:2, swimmers:2, tick_boom:2 } },
+      { icon: '👫', main: 'Met vrienden',                 sub: 'Groepsavond',
+        s: { glass_onion:2, dont_look_up:2, extraction:2, carry_on:2, murder_mystery:1, old_guard:2 } },
+      { icon: '👨‍👩‍👧', main: 'Met familie',               sub: 'Voor meerdere generaties',
+        s: { adam_project:3, hustle:2, murder_mystery:2, swimmers:2, old_guard:1 } }
+    ]
+  },
+  {
+    id: 'energy',
+    text: 'Hoeveel energie heb je?',
+    opts: [
+      { icon: '🛋️', main: 'Weinig — ik wil gewoon ondergaan', sub: 'Niets te complex, lekker weg',
+        s: { murder_mystery:3, hustle:2, adam_project:2, glass_onion:1 } },
+      { icon: '😊', main: 'Normaal — ik volg graag een goed verhaal', sub: '',
+        s: { glass_onion:2, tick_boom:2, rebel_ridge:2, dont_look_up:2, leave_world:2, old_guard:2, swimmers:2 } },
+      { icon: '🔥', main: 'Veel — houd me scherp',        sub: 'Non-stop, geen slaapverwekkend',
+        s: { extraction:3, carry_on:3, bird_box:2, all_quiet:2, old_guard:2 } }
+    ]
+  },
+  {
+    id: 'avoid',
+    text: 'Wat mag er absoluut NIET in zitten?',
+    opts: [
+      { icon: '🩸', main: 'Veel bloed of grof geweld',   sub: '',
+        s: { murder_mystery:2, glass_onion:2, adam_project:2, hustle:2, tick_boom:2, dont_look_up:2, swimmers:2, leave_world:2 } },
+      { icon: '😱', main: 'Horror of schrikmomenten',     sub: '',
+        s: { glass_onion:2, dont_look_up:2, hustle:2, power_of_dog:2, rebel_ridge:2, carry_on:2, extraction:2, tick_boom:2, old_guard:2, adam_project:2 } },
+      { icon: '😢', main: 'Zware drama of huilen',        sub: 'Niet vanavond',
+        s: { glass_onion:2, murder_mystery:2, extraction:2, carry_on:2, bird_box:1, dont_look_up:1, adam_project:2, old_guard:2 } },
+      { icon: '✌️', main: 'Niks — ik kan alles hebben',  sub: '',
+        s: { all_quiet:2, extraction:2, bird_box:2, leave_world:2, power_of_dog:2, swimmers:2 } }
+    ]
+  },
+  {
+    id: 'pace',
+    text: 'Wat voor tempo wil je?',
+    opts: [
+      { icon: '💨', main: 'Snel — non-stop, geen stiltes', sub: 'Actie die niet stopt',
+        s: { extraction:3, carry_on:3, bird_box:2, adam_project:2, old_guard:2 } },
+      { icon: '🎬', main: 'Normaal — lekker afgewisseld',  sub: 'Actie én rustmomenten',
+        s: { glass_onion:2, rebel_ridge:2, dont_look_up:2, murder_mystery:2, hustle:2, swimmers:2, tick_boom:2, old_guard:1 } },
+      { icon: '🌿', main: 'Langzaam — sfeer en opbouw',    sub: 'Subtiliteit en spanning die groeit',
+        s: { power_of_dog:3, tick_boom:2, leave_world:2, all_quiet:2, swimmers:2 } }
+    ]
+  },
+  {
+    id: 'depth',
+    text: 'Nadenken of uitschakelen?',
+    opts: [
+      { icon: '🧠', main: 'Gewoon uitschakelen',           sub: 'Niet te zwaar, lekker kijken',
+        s: { murder_mystery:3, extraction:3, adam_project:2, hustle:2, old_guard:2 } },
+      { icon: '🤔', main: 'Een beetje uitgedaagd worden',  sub: 'Slim plot, goede opbouw',
+        s: { glass_onion:2, rebel_ridge:2, carry_on:2, dont_look_up:2, bird_box:2 } },
+      { icon: '💡', main: 'Iets dat me bijblijft',         sub: 'Diep, meerdere lagen, blijft hangen',
+        s: { power_of_dog:3, leave_world:3, dont_look_up:2, tick_boom:2, swimmers:2, all_quiet:2 } }
+    ]
+  },
+  {
+    id: 'setting',
+    text: 'Welke setting spreekt je aan?',
+    opts: [
+      { icon: '🏙️', main: 'Hedendaags en herkenbaar',     sub: 'Gewone wereld, nu',
+        s: { glass_onion:2, dont_look_up:2, murder_mystery:2, hustle:2, carry_on:2, rebel_ridge:2, bird_box:2, leave_world:2, extraction:2, old_guard:1 } },
+      { icon: '⚔️', main: 'Historisch of oorlog',          sub: 'Ander tijdperk, echte geschiedenis',
+        s: { all_quiet:4, power_of_dog:3, tick_boom:2, swimmers:2 } },
+      { icon: '🚀', main: 'Sci-Fi of fantasy',             sub: 'Niet de echte wereld',
+        s: { adam_project:4, dont_look_up:2, old_guard:3, bird_box:1 } },
+      { icon: '🤷', main: 'Maakt me niet uit',             sub: 'Goede film is goede film',
+        s: { glass_onion:1, rebel_ridge:1, hustle:1, swimmers:1 } }
+    ]
+  },
+  {
+    id: 'ending',
+    text: 'Wat voor einde wil je?',
+    opts: [
+      { icon: '🎉', main: 'Happy end — goed gevoel',       sub: 'Blij de bank af stappen',
+        s: { murder_mystery:3, hustle:3, adam_project:2, glass_onion:2, carry_on:2, old_guard:2 } },
+      { icon: '😮', main: 'Spannend en onverwacht',        sub: 'Verrassen me maar',
+        s: { glass_onion:2, carry_on:2, bird_box:2, rebel_ridge:2, dont_look_up:2 } },
+      { icon: '🎭', main: 'Realistisch, ook als het pijnlijk is', sub: 'Liever eerlijk dan mooi',
+        s: { all_quiet:3, power_of_dog:3, dont_look_up:3, swimmers:3, tick_boom:2 } },
+      { icon: '🌀', main: 'Open einde — zelf nadenken',    sub: 'Geen nette strik',
+        s: { leave_world:3, power_of_dog:2, dont_look_up:2 } }
+    ]
+  },
+  {
+    id: 'length',
+    text: 'Hoe lang wil je kijken?',
+    opts: [
+      { icon: '⚡', main: 'Kort — tot 1u 45m',             sub: '',
+        s: { murder_mystery:4, adam_project:2 } },
+      { icon: '🎬', main: 'Normaal — 1u 45m tot 2u 15m',   sub: 'De standaard filmlengte',
+        s: { carry_on:2, rebel_ridge:2, bird_box:2, power_of_dog:2, tick_boom:2, hustle:2, extraction:2, old_guard:2, dont_look_up:1 } },
+      { icon: '🌙', main: 'Lang — 2u 15m of meer',         sub: 'Ik heb de avond',
+        s: { dont_look_up:3, all_quiet:3, glass_onion:3, leave_world:2, swimmers:3 } },
+      { icon: '🤷', main: 'Maakt me niet uit',             sub: '',
+        s: {} }
+    ]
+  },
+  {
+    id: 'highlight',
+    text: 'Wat trekt je het meest aan in een film?',
+    opts: [
+      { icon: '🎭', main: 'Sterke personages en acteurs',  sub: 'Karakters die ik niet vergeet',
+        s: { glass_onion:2, dont_look_up:2, tick_boom:2, power_of_dog:2, hustle:2, swimmers:2, old_guard:2 } },
+      { icon: '🧩', main: 'Slim plot met verrassingen',    sub: 'Ik wil verrast worden',
+        s: { glass_onion:3, carry_on:2, rebel_ridge:2, bird_box:2, dont_look_up:2 } },
+      { icon: '🎨', main: 'Mooie beelden en sfeer',        sub: 'Cinematografie, muziek, atmosfeer',
+        s: { all_quiet:3, power_of_dog:3, leave_world:2, swimmers:2, tick_boom:2 } },
+      { icon: '😂', main: 'Humor en luchtige momenten',    sub: 'Ik wil lachen',
+        s: { murder_mystery:3, dont_look_up:2, adam_project:2, glass_onion:2 } }
+    ]
+  }
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let step = -1;       // -1 = welcome
+let answers = {};    // { questionId: optionIndex }
+
+// ─────────────────────────────────────────────
+// RENDER HELPERS
+// ─────────────────────────────────────────────
+const app = document.getElementById('app');
+
+function renderWelcome() {
+  step = -1;
+  app.innerHTML = `
+    <div class="welcome">
+      <div class="welcome-icon">🎬</div>
+      <h1>Welke film kijk je vanavond?</h1>
+      <p>Beantwoord ${QUESTIONS.length} vragen over je stemming, gezelschap en smaak — en ontdek welke Netflix-films perfect bij jouw avond passen.</p>
+      <div class="pill-row">
+        <span class="pill">🎭 ${QUESTIONS.length} vragen</span>
+        <span class="pill">🎬 15 films</span>
+        <span class="pill">📺 Netflix NL</span>
+        <span class="pill">⏱️ ~2 minuten</span>
+      </div>
+      <button class="btn-start" onclick="go(0)">Start de quiz →</button>
+    </div>
+  `;
+}
+
+function renderQuestion(idx) {
+  step = idx;
+  const q = QUESTIONS[idx];
+  const pct = (idx / QUESTIONS.length) * 100;
+  const sel = answers[q.id];
+  const isLast = idx === QUESTIONS.length - 1;
+
+  app.innerHTML = `
+    <div class="progress-wrap">
+      <div class="progress-meta">
+        <span>Vraag ${idx + 1} van ${QUESTIONS.length}</span>
+        <span>${Math.round(pct)}% klaar</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width:${pct}%"></div>
+      </div>
+    </div>
+    <div class="q-card">
+      <div class="q-label">Vraag ${idx + 1}</div>
+      <div class="q-text">${q.text}</div>
+      <div class="options">
+        ${q.opts.map((o, i) => `
+          <div class="opt ${sel === i ? 'sel' : ''}" onclick="pick(${i})">
+            <div class="opt-icon">${o.icon}</div>
+            <div class="opt-body">
+              <div class="opt-main">${o.main}</div>
+              ${o.sub ? `<div class="opt-sub">${o.sub}</div>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="q-nav">
+        ${idx > 0 ? `<button class="btn-back" onclick="go(${idx - 1})">← Terug</button>` : ''}
+        <button class="btn-next ${sel !== undefined ? 'on' : ''}" id="nextBtn" onclick="next()">
+          ${isLast ? 'Bekijk mijn films 🎬' : 'Volgende →'}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderResults() {
+  // tally scores
+  const totals = {};
+  FILMS.forEach(f => totals[f.id] = 0);
+
+  QUESTIONS.forEach(q => {
+    const idx = answers[q.id];
+    if (idx === undefined) return;
+    Object.entries(q.opts[idx].s).forEach(([id, pts]) => {
+      if (totals[id] !== undefined) totals[id] += pts;
+    });
+  });
+
+  const sorted = FILMS
+    .map(f => ({ ...f, pts: totals[f.id] }))
+    .sort((a, b) => b.pts - a.pts)
+    .slice(0, 8);
+
+  const topPts = sorted[0].pts || 1;
+
+  app.innerHTML = `
+    <div class="res-header">
+      <h2>🎬 Jouw filmtips van vanavond</h2>
+      <p>Gesorteerd op hoe goed ze passen bij je antwoorden</p>
+    </div>
+    <div class="film-list">
+      ${sorted.map((f, i) => {
+        const pct = Math.max(10, Math.round((f.pts / topPts) * 100));
+        return `
+          <div class="film-card ${i === 0 ? 'gold' : ''}">
+            <div class="rank">${i === 0 ? '🥇' : '#' + (i + 1)}</div>
+            <div class="film-info">
+              <div class="film-title">${f.title}</div>
+              <div class="film-meta">${f.year} &middot; ${f.runtime}</div>
+              <div class="tags">${f.genres.map(g => `<span class="tag">${g}</span>`).join('')}</div>
+              <div class="film-desc">${f.desc}</div>
+              <div class="match-row">
+                <span class="match-lbl">Match</span>
+                <div class="match-track">
+                  <div class="match-bar" data-pct="${pct}"></div>
+                </div>
+                <span class="match-pct">${pct}%</span>
+              </div>
+              <a href="${f.url}" target="_blank" rel="noopener" class="nf-btn">▶ Bekijk op Netflix</a>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+    <div class="disclaimer">
+      Beschikbaarheid kan variëren. Controleer altijd of de film nog op Netflix NL staat.
+    </div>
+    <div class="res-footer">
+      <button class="btn-restart" onclick="renderWelcome()">↺ Opnieuw beginnen</button>
+    </div>
+  `;
+
+  // animate bars after paint
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      document.querySelectorAll('.match-bar[data-pct]').forEach(el => {
+        el.style.width = el.dataset.pct + '%';
+      });
+    }, 80);
+  });
+}
+
+// ─────────────────────────────────────────────
+// ACTIONS
+// ─────────────────────────────────────────────
+function go(idx) {
+  if (idx < 0) { renderWelcome(); return; }
+  renderQuestion(idx);
+}
+
+function pick(i) {
+  const q = QUESTIONS[step];
+  answers[q.id] = i;
+  document.querySelectorAll('.opt').forEach((el, j) => el.classList.toggle('sel', j === i));
+  const btn = document.getElementById('nextBtn');
+  if (btn) btn.classList.add('on');
+}
+
+function next() {
+  const q = QUESTIONS[step];
+  if (answers[q.id] === undefined) return;
+  if (step < QUESTIONS.length - 1) {
+    go(step + 1);
+  } else {
+    renderResults();
+  }
+}
+
+// ─────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────
+renderWelcome();
+</script>
+</body>
+</html>
